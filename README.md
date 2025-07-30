@@ -1,3 +1,5 @@
+THIS PROJECT IS JUST ME LEARNING HOW TO BUILD RUST APP WITH PYTHON ALSO USING AI AGENTS FOR THE FIRST TIME SO THIS IS NOT TO BE USED
+
 # PyOF - Python Offline Features
 
 PyOF is a Python library for managing offline feature flags and configurations. It allows developers to define complex feature rollout rules based on various classifiers, such as session data, host properties, or other custom attributes.
@@ -6,10 +8,10 @@ These feature definitions can be serialized to and from JSON, making them easy t
 
 ## Core Concepts
 
-*   **Offlinefeature**: The main object representing a feature or configuration. It contains a list of buckets, their corresponding values, and the Python versions it applies to.
-*   **Bucket**: Represents a segment of users or requests that will receive a specific feature value. Each bucket has a `name` and a `classifier`.
-*   **Classifier**: A set of rules that are evaluated to determine if the current context (e.g., a user session) belongs to a bucket. Classifiers can be combined using logical operators (`&`, `|`).
-*   **Serialization**: Features defined in Python code can be easily dumped to a JSON file. This allows for a clean separation between feature definition and application code. The library also supports loading these JSON definitions back into Python objects.
+* **Offlinefeature**: The main object representing a feature or configuration. It contains a list of buckets, their corresponding values, and the Python versions it applies to.
+* **Bucket**: Represents a segment of users or requests that will receive a specific feature value. Each bucket has a `name` and a `classifier`.
+* **Classifier**: A set of rules that are evaluated to determine if the current context (e.g., a user session) belongs to a bucket. Classifiers can be combined using logical operators (`&`, `|`).
+* **Serialization**: Features defined in Python code can be easily dumped to a JSON file. This allows for a clean separation between feature definition and application code. The library also supports loading these JSON definitions back into Python objects.
 
 ## Quick Start
 
@@ -20,6 +22,7 @@ Here is a simple example of how to define and use an offline feature.
 Create a Python script to define your feature. In this example, we create a feature that splits traffic between a "holdout" and a "control" group based on a random session number and the machine's hostname.
 
 `create_feature.py`:
+
 ```python
 from pathlib import Path
 from pyof.c import REGEXMATCH
@@ -65,6 +68,7 @@ print("Feature 'my_feature.json' created successfully.")
 In your application, you can load the JSON definition and evaluate it to get the correct value for the current context.
 
 `app.py`:
+
 ```python
 import json
 from pathlib import Path

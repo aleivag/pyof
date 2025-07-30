@@ -1,0 +1,62 @@
+{
+  "type": "offline-feature",
+  "python_versions": [
+    "all"
+  ],
+  "buckets": [
+    {
+      "name": "holdout",
+      "classifier": {
+        "type": "bool.all",
+        "attribute": null,
+        "value": [
+          {
+            "type": "comparison.lt",
+            "attribute": {
+              "type": "callable-attribute",
+              "name": "random.session"
+            },
+            "value": 0.1
+          },
+          {
+            "type": "re.match",
+            "attribute": {
+              "type": "callable-attribute",
+              "name": "socket.hostname"
+            },
+            "value": "^len.+"
+          }
+        ]
+      }
+    },
+    {
+      "name": "control",
+      "classifier": {
+        "type": "bool.all",
+        "attribute": null,
+        "value": [
+          {
+            "type": "comparison.lt",
+            "attribute": {
+              "type": "callable-attribute",
+              "name": "random.session"
+            },
+            "value": 0.1
+          },
+          {
+            "type": "re.match",
+            "attribute": {
+              "type": "callable-attribute",
+              "name": "socket.hostname"
+            },
+            "value": "^len.+"
+          }
+        ]
+      }
+    }
+  ],
+  "values": {
+    "holdout": true,
+    "control": false
+  }
+}
