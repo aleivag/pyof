@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 mod classifier;
 mod attribute;
-use classifier::{Classifier, eval_classifier, Value};
+use classifier::{Classifier, Value};
 use attribute::{Attribute, AttributeType};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -24,12 +24,12 @@ struct OfflineFeature {
 }
 
 #[pyfunction]
-fn get_bucket_name(json_string: &str) -> PyResult<String> {
+fn get_bucket_name(py: Python, json_string: &str) -> PyResult<String> {
     let feature: OfflineFeature = serde_json::from_str(json_string)
         .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
     for bucket in &feature.buckets {
-        if eval_classifier(&bucket.classifier) {
+        if bucket.classifier.eval(py) {
             return Ok(bucket.name.clone());
         }
     }
@@ -55,5 +55,6 @@ fn rust_of(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_value_for_bucket, m)?)?;
     m.add_class::<Attribute>()?;
     m.add_class::<AttributeType>()?;
+    m.add_class::<Classifier>()?;
     Ok(())
 }

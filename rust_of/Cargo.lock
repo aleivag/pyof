@@ -297,6 +297,7 @@ name = "rust_of"
 version = "0.1.0"
 dependencies = [
  "gethostname",
+ "once_cell",
  "pyo3",
  "rand",
  "regex",

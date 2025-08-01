@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 use rand::Rng;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
-
-use crate::classifier::Value;
+use pyo3::types::{PyDict, PyString, PyFloat};
+use once_cell::sync::OnceCell;
 
 // Macro to define the AttributeType enum and implement its `members` method
 macro_rules! define_attribute_type {
@@ -11,7 +10,7 @@ macro_rules! define_attribute_type {
         $($serde_name:literal => $variant:ident),
     *]) => {
         #[pyclass]
-        #[derive(Serialize, Deserialize, Debug)]
+        #[derive(Serialize, Deserialize, Debug, Clone)]
         pub enum $enum_name {
             $(#[serde(rename = $serde_name)]
             $variant,)*
@@ -30,15 +29,6 @@ macro_rules! define_attribute_type {
     };
 }
 
-// Represents the possible types within the `args` array of an Attribute.
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(untagged)]
-pub enum ArgValue {
-    String(String),
-    Number(f64),
-    Boolean(bool),
-}
-
 // Define the AttributeType enum using the macro
 define_attribute_type!(
     AttributeType, [
@@ -47,21 +37,37 @@ define_attribute_type!(
     ]
 );
 
+// Global cache for SessionRandom
+static SESSION_RANDOM_CACHE: OnceCell<PyObject> = OnceCell::new();
+
 // Represents the `attribute` field in a Classifier.
 #[pyclass]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)] // Added Clone here
 pub struct Attribute {
     pub name: AttributeType, 
     #[serde(rename = "type")]
     pub attribute_type: String,
-    #[serde(default)]
-    pub args: Option<Vec<ArgValue>>,
 }
 
-// Gets the value of an attribute.
-pub fn get_attribute_value(attribute: &Attribute) -> Value {
-    match attribute.name {
-        AttributeType::Hostname => Value::String(gethostname::gethostname().into_string().unwrap()),
-        AttributeType::SessionRandom => Value::Number(rand::thread_rng().gen_range(0.0..1.0)),
+#[pymethods]
+impl Attribute {
+    #[new]
+    fn new(name: AttributeType, attribute_type: Option<String>) -> Self {
+        Attribute {
+            name,
+            attribute_type: attribute_type.unwrap_or_else(|| "callable-attribute".to_string()),
+        }
+    }
+
+    pub fn eval(&self, py: Python) -> PyResult<PyObject> {
+        match self.name {
+            AttributeType::Hostname => Ok(PyString::new(py, &gethostname::gethostname().into_string().unwrap()).into()),
+            AttributeType::SessionRandom => {
+                let random_value = SESSION_RANDOM_CACHE.get_or_init(|| {
+                    PyFloat::new(py, rand::thread_rng().gen_range(0.0..1.0)).into_py(py)
+                });
+                Ok(random_value.clone_ref(py))
+            }
+        }
     }
 }

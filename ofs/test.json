@@ -41,7 +41,7 @@
               "type": "callable-attribute",
               "name": "random.session"
             },
-            "value": 0.1
+            "value": 0.2
           },
           {
             "type": "re.match",

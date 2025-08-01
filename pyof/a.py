@@ -1,21 +1,17 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 from .c import LESS_THAN
 
+import rust_of
 
 _CallableAttributes = {}
 
 
-class CallableAttribute(ABC, BaseModel):
+class CallableAttribute(BaseModel):
     type: str = "callable-attribute"
     name: str
-
-    @classmethod
-    @abstractmethod
-    def eval(cls): ...
 
     def __init_subclass__(cls) -> None:
         _CallableAttributes[cls.name] = cls
@@ -29,21 +25,10 @@ class CallableAttribute(ABC, BaseModel):
         return _CallableAttributes[attribute_name]
 
 
-class HOSTNAME(CallableAttribute):
-    name: str = "socket.hostname"
-
-    @classmethod
-    def eval(cls) -> str:
-        import socket
-
-        return socket.gethostname()
-
-
-class SESSION_RANDOM(CallableAttribute):
-    name: str = "random.session"
-
-    @classmethod
-    def eval(cls) -> float:
-        import random
-
-        return random.random()
+for name, type_ in rust_of.AttributeType.members().items():
+    _, class_name = str(type_).rsplit(".", 1)
+    globals()[class_name] = type(
+        class_name,
+        (CallableAttribute,),
+        {"__annotations__": {"name": str}, "name": name, "eval": lambda x: None},
+    )

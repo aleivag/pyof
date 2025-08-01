@@ -11,7 +11,7 @@ import rust_of
 
 #
 from pyof.c import ClassifierBase, _classifiers, REGEXMATCH, ALL, LESS_THAN, ANY
-from pyof.a import SESSION_RANDOM, HOSTNAME, CallableAttribute
+from pyof.a import Hostname, SessionRandom, CallableAttribute
 from pyof.of import Offlinefeature, PythonVersion, FeatureType, Bucket
 
 
@@ -23,8 +23,8 @@ of = Offlinefeature(
             name="holdout",
             classifier=ALL(
                 value=[
-                    LESS_THAN(attribute=SESSION_RANDOM(), value=0.1),
-                    REGEXMATCH(attribute=HOSTNAME(), value="^len.+")
+                    SessionRandom() < 0.1,
+                    REGEXMATCH(attribute=Hostname(), value="^len.+"),
                 ]
             ),
         ),
@@ -32,8 +32,8 @@ of = Offlinefeature(
             name="control",
             classifier=ALL(
                 value=[
-                    LESS_THAN(attribute=SESSION_RANDOM(), value=0.1),
-                    REGEXMATCH(attribute=HOSTNAME(), value="^len.+")
+                    SessionRandom() < 0.2,
+                    REGEXMATCH(attribute=Hostname(), value="^len.+"),
                 ]
             ),
         ),
@@ -53,7 +53,8 @@ def obj_hook(dct):
 
     type_ = dct["type"]
     if type_ == "callable-attribute":
-        return CallableAttribute.get_attribute(dct["name"])()
+        name = rust_of.AttributeType.members()[dct["name"]]
+        return rust_of.Attribute(attribute_type=type_, name=name)
     if type_ == "offline-feature":
         return Offlinefeature.model_validate(dct)
     if classifier := ClassifierBase.get_classifier(type_):
@@ -65,5 +66,13 @@ def obj_hook(dct):
 nof = json.loads(json_of, object_hook=obj_hook)
 
 
-print(nof.get_bucket_name())
-print(rust_of.get_bucket_name(json_of))
+print(
+    "same bucket?",
+    nof.get_bucket_name() == (bucket := rust_of.get_bucket_name(json_of)),
+)
+print(
+    "same random?",
+    rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval()
+    == rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval(),
+)
+print("bucket?", bucket)
