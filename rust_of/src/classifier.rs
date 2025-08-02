@@ -1,13 +1,12 @@
-use serde::{Deserialize, Serialize};
-use pyo3::prelude::*;
-use pyo3::types::{PyString, PyFloat, PyBool, PyList, PyDict};
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::{PyBool, PyDict, PyFloat, PyList, PyString};
+use serde::{Deserialize, Serialize};
 
-use crate::attribute::{Attribute};
+use crate::attribute::Attribute;
 
-use std::collections::HashMap;
 use regex::Regex;
-
+use std::collections::HashMap;
 
 // Represents the flexible `value` field in a Classifier.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,7 +37,9 @@ impl<'source> FromPyObject<'source> for Value {
             }
             Ok(Value::Array(vec))
         } else {
-            Err(PyValueError::new_err("Could not convert Python object to Value"))
+            Err(PyValueError::new_err(
+                "Could not convert Python object to Value",
+            ))
         }
     }
 }
@@ -80,7 +81,7 @@ macro_rules! define_classifier {
 
         #[pymethods]
         impl $enum_name {
-            pub fn eval(&self, py: Python) -> bool { 
+            pub fn eval(&self, py: Python) -> bool {
                 match self {
                     $(
                         $enum_name::$variant_name { $($field_name),* } => {
@@ -89,6 +90,9 @@ macro_rules! define_classifier {
                         }
                     ),*
                 }
+            }
+            pub fn json(&self) -> String {
+                serde_json::to_string(&self).unwrap()
             }
         }
     };
@@ -129,7 +133,7 @@ define_classifier!(
     }
     },
     "comparison.gt" => GT { attribute: Attribute, value: Value } => {
-     
+
         |py:Python| {
         if let (Value::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {

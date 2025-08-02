@@ -65,14 +65,26 @@ def obj_hook(dct):
 
 nof = json.loads(json_of, object_hook=obj_hook)
 
+bucket = rust_of.get_bucket_name(json_of)
 
-print(
-    "same bucket?",
-    nof.get_bucket_name() == (bucket := rust_of.get_bucket_name(json_of)),
-)
-print(
-    "same random?",
-    rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval()
-    == rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval(),
-)
-print("bucket?", bucket)
+print(f"{bucket=}")
+#
+# print(
+#     "same bucket?",
+#     nof.get_bucket_name() == (bucket := rust_of.get_bucket_name(json_of)),
+# )
+# print(
+#     "same random?",
+#     rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval()
+#     == rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval(),
+# )
+# print("bucket?", bucket)
+#
+#
+# ### the other test
+#
+# print(isinstance(rust_of.Classifier.ALL, rust_of.Classifier))
+
+RANDOM = rust_of.Attribute(name=rust_of.AttributeType.SessionRandom)
+
+print(rust_of.Classifier.LT(attribute=RANDOM, value=0.5).json())

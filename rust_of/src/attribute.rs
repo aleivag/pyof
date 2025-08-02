@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use rand::Rng;
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyString, PyFloat};
 use once_cell::sync::OnceCell;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyFloat, PyString};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 
 // Macro to define the AttributeType enum and implement its `members` method
 macro_rules! define_attribute_type {
@@ -44,7 +44,7 @@ static SESSION_RANDOM_CACHE: OnceCell<PyObject> = OnceCell::new();
 #[pyclass]
 #[derive(Serialize, Deserialize, Debug, Clone)] // Added Clone here
 pub struct Attribute {
-    pub name: AttributeType, 
+    pub name: AttributeType,
     #[serde(rename = "type")]
     pub attribute_type: String,
 }
@@ -61,7 +61,9 @@ impl Attribute {
 
     pub fn eval(&self, py: Python) -> PyResult<PyObject> {
         match self.name {
-            AttributeType::Hostname => Ok(PyString::new(py, &gethostname::gethostname().into_string().unwrap()).into()),
+            AttributeType::Hostname => {
+                Ok(PyString::new(py, &gethostname::gethostname().into_string().unwrap()).into())
+            }
             AttributeType::SessionRandom => {
                 let random_value = SESSION_RANDOM_CACHE.get_or_init(|| {
                     PyFloat::new(py, rand::thread_rng().gen_range(0.0..1.0)).into_py(py)
