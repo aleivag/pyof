@@ -65,9 +65,13 @@ def obj_hook(dct):
 
 nof = json.loads(json_of, object_hook=obj_hook)
 
-bucket = rust_of.get_bucket_name(json_of)
+nof = rust_of.OfflineFeature.loads(json_of)
+
+bucket = nof.get_bucket_name()
 
 print(f"{bucket=}")
+value = nof.get_value_for_bucket(bucket)
+print(f"{value=}")
 #
 # print(
 #     "same bucket?",

@@ -58,5 +58,6 @@
   "values": {
     "holdout": true,
     "control": false
-  }
+  },
+  "defaut": null
 }

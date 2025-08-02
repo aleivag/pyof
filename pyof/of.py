@@ -26,7 +26,7 @@ class Offlinefeature(BaseModel):
     python_versions: list[PythonVersion]
     buckets: list[Bucket]
     values: dict[str, object] = {}
-    # defaut: object | None
+    defaut: object | None = None
 
     def get_bucket_name(self):
         for bucket in self.buckets:
