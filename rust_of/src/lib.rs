@@ -1,12 +1,12 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-mod classifier;
 mod attribute;
-use classifier::{Classifier, Value};
+mod classifier;
 use attribute::{Attribute, AttributeType};
+use classifier::{Classifier, Value};
 
 #[pyclass]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -14,7 +14,6 @@ pub enum FeatureType {
     #[serde(rename = "offline-feature")]
     Offline,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum PythonVersion {
@@ -47,44 +46,34 @@ struct OfflineFeature {
 
 #[pymethods]
 impl OfflineFeature {
-
     #[staticmethod]
-    pub fn loads( py: Python, json_string: &str) -> PyResult<OfflineFeature> {
-        Ok(serde_json::from_str(json_string)
-        .map_err(|e| PyValueError::new_err(e.to_string()))?)
-
+    pub fn loads(py: Python, json_string: &str) -> PyResult<OfflineFeature> {
+        Ok(serde_json::from_str(json_string).map_err(|e| PyValueError::new_err(e.to_string()))?)
     }
 
-fn get_bucket_name(&self, py: Python) -> PyResult<String> {
-
-    for bucket in &self.buckets {
-        if bucket.classifier.eval(py) {
-            return Ok(bucket.name.clone());
+    fn get_bucket_name(&self, py: Python) -> PyResult<String> {
+        for bucket in &self.buckets {
+            if bucket.classifier.eval(py) {
+                return Ok(bucket.name.clone());
+            }
         }
+
+        Ok("default".to_string())
     }
-
-    Ok("default".to_string())
-}
-
 
     pub fn get_value_for_bucket(&self, py: Python, bucket_name: &str) -> PyResult<String> {
         // if bucket_name == "default" {
         //     // return Ok(self.default.clone().into_py(py));
         //     return Ok((&self.default).to_string());
         // }
-        
+
         if let Some(value) = self.values.get(bucket_name) {
             Ok(value.to_string())
         } else {
             Ok("null".to_string())
         }
-
     }
-
-
 }
-
-
 
 #[pymodule]
 fn rust_of(_py: Python, m: &PyModule) -> PyResult<()> {
