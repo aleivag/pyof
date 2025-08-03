@@ -1,6 +1,7 @@
 from enum import Enum
 from pydantic import BaseModel
 from .c import ClassifierBase
+from .a import _CallableAttributes
 from pathlib import Path
 import json
 
@@ -26,7 +27,7 @@ class Offlinefeature(BaseModel):
     python_versions: list[PythonVersion]
     buckets: list[Bucket]
     values: dict[str, object] = {}
-    defaut: object | None = None
+    default: object | None = None
 
     def get_bucket_name(self):
         for bucket in self.buckets:
@@ -38,6 +39,26 @@ class Offlinefeature(BaseModel):
         if bucket_name == "default":
             return self.defaut
         return self.values[bucket_name]
+
+    @classmethod
+    def loads(self, json_string):
+        def obj_hook(dct):
+            if "type" not in dct:
+                return dct
+
+            type_ = dct["type"]
+            if type_ == "callable-attribute":
+                # name = rust_of.AttributeType.members()[dct["name"]]
+                return _CallableAttributes[dct["name"]]()
+                # return rust_of.Attribute(attribute_type=type_, name=name)
+            if type_ == "offline-feature":
+                return Offlinefeature.model_validate(dct)
+            if classifier := ClassifierBase.get_classifier(type_):
+                return classifier.model_validate(dct)
+
+            return dct
+
+        return json.loads(json_string, object_hook=obj_hook)
 
     def eval(self) -> object:
         return self.get_value_for_bucket(self.get_bucket_name())

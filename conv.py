@@ -39,7 +39,7 @@ of = Offlinefeature(
         ),
     ],
     values={"holdout": True, "control": False},
-    default=None,
+    default=False,
 )
 
 of.write(Path("ofs/test.json"), indent=2, only_update=True)
@@ -47,23 +47,7 @@ of.write(Path("ofs/test.json"), indent=2, only_update=True)
 json_of = of.model_dump_json(indent=2)
 
 
-def obj_hook(dct):
-    if "type" not in dct:
-        return dct
-
-    type_ = dct["type"]
-    if type_ == "callable-attribute":
-        name = rust_of.AttributeType.members()[dct["name"]]
-        return rust_of.Attribute(attribute_type=type_, name=name)
-    if type_ == "offline-feature":
-        return Offlinefeature.model_validate(dct)
-    if classifier := ClassifierBase.get_classifier(type_):
-        return classifier.model_validate(dct)
-
-    return dct
-
-
-nof = json.loads(json_of, object_hook=obj_hook)
+nof = Offlinefeature.loads(json_of)
 
 nof = rust_of.OfflineFeature.loads(json_of)
 
@@ -89,6 +73,8 @@ print(f"{value=}")
 #
 # print(isinstance(rust_of.Classifier.ALL, rust_of.Classifier))
 
-RANDOM = rust_of.Attribute(name=rust_of.AttributeType.SessionRandom)
-
-print(rust_of.Classifier.LT(attribute=RANDOM, value=0.5).json())
+# RANDOM = rust_of.Attribute(name=rust_of.AttributeType.SessionRandom)
+# from pprint import pprint
+#
+# pprint(json.loads(nof.dumps()))
+# pprint(json.loads(json_of))
