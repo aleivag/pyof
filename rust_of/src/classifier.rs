@@ -1,6 +1,6 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyBool, PyDict, PyFloat, PyList, PyString};
+use pyo3::types::{PyList };
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::Attribute;
@@ -11,99 +11,56 @@ use std::collections::HashMap;
 // Represents the flexible `value` field in a Classifier.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum Value {
+pub enum ClassifierValue {
     String(String),
     Number(f64),
     Boolean(bool),
     Classifier(Box<Classifier>),
-    Array(Vec<Value>),
+    Array(Vec<ClassifierValue>),
 }
 
-impl<'source> FromPyObject<'source> for Value {
+impl<'source> FromPyObject<'source> for ClassifierValue {
     fn extract(ob: &PyAny) -> PyResult<Self> {
         if let Ok(s) = ob.extract::<String>() {
-            Ok(Value::String(s))
+            Ok(ClassifierValue::String(s))
         } else if let Ok(f) = ob.extract::<f64>() {
-            Ok(Value::Number(f))
+            Ok(ClassifierValue::Number(f))
         } else if let Ok(b) = ob.extract::<bool>() {
-            Ok(Value::Boolean(b))
+            Ok(ClassifierValue::Boolean(b))
         } else if let Ok(c) = ob.extract::<PyRef<Classifier>>() {
             // Extract the underlying Rust Classifier from the PyRef
-            Ok(Value::Classifier(Box::new(c.clone())))
+            Ok(ClassifierValue::Classifier(Box::new(c.clone())))
         } else if let Ok(l) = ob.extract::<Py<PyList>>() {
             let mut vec = Vec::new();
             for item in l.as_ref(ob.py()).iter() {
                 vec.push(item.extract()?);
             }
-            Ok(Value::Array(vec))
+            Ok(ClassifierValue::Array(vec))
         } else {
             Err(PyValueError::new_err(
-                "Could not convert Python object to Value",
+                "Could not convert Python object to ClassifierValue",
             ))
         }
     }
 }
 
-impl IntoPy<PyObject> for Value {
+impl IntoPy<PyObject> for ClassifierValue {
     fn into_py(self, py: Python) -> PyObject {
         match self {
-            Value::String(s) => s.into_py(py),
-            Value::Number(f) => f.into_py(py),
-            Value::Boolean(b) => b.into_py(py),
-            Value::Classifier(c) => c.into_py(py),
-            Value::Array(v) => v.into_py(py),
+            ClassifierValue::String(s) => s.into_py(py),
+            ClassifierValue::Number(f) => f.into_py(py),
+            ClassifierValue::Boolean(b) => b.into_py(py),
+            ClassifierValue::Classifier(c) => c.into_py(py),
+            ClassifierValue::Array(v) => v.into_py(py),
         }
     }
 }
 
-// Macro to define the Classifier enum and its methods
-macro_rules! define_classifier {
-    (
-        $enum_name:ident, // The name of the enum (e.g., Classifier)
-        $(
-            // Each variant definition:
-            // $serde_name: The string used for #[serde(rename = "...")]
-            // $variant_name: The Rust enum variant name (e.g., REGEXMATCH)
-            // $fields: The fields of the variant (e.g., attribute: Attribute, value: Value)
-            // $eval_logic: The Rust code for the eval method's match arm
-            $serde_name:literal => $variant_name:ident { $($field_name:ident : $field_type:ty),* } => { $($eval_logic:tt)* }
-        ),*
-    ) => {
-        #[pyclass]
-        #[derive(Serialize, Deserialize, Debug, Clone)]
-        #[serde(tag = "type")]
-        pub enum $enum_name {
-            $(
-                #[serde(rename = $serde_name)]
-                $variant_name { $($field_name : $field_type),* },
-            )*
-        }
-
-        #[pymethods]
-        impl $enum_name {
-            pub fn eval(&self, py: Python) -> bool {
-                match self {
-                    $(
-                        $enum_name::$variant_name { $($field_name),* } => {
-                            let logic = $($eval_logic)* ;
-                            logic(py)
-                        }
-                    ),*
-                }
-            }
-            pub fn json(&self) -> String {
-                serde_json::to_string(&self).unwrap()
-            }
-        }
-    };
-}
-
-// Define the Classifier enum using the macro
-define_classifier!(
-    Classifier,
-    "re.match" => REGEXMATCH { attribute: Attribute, value: Value } => {
+TypeEnum!(
+    Classifier=>bool,
+    "re.match" => REGEXMATCH { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-            if let (Value::String(pattern), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
+            if let (ClassifierValue::String(pattern), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(hostname) = attr_py_obj.extract::<String>(py) {
                 let re = Regex::new(pattern).unwrap();
                 re.is_match(&hostname)
@@ -115,13 +72,13 @@ define_classifier!(
         }
         }
     },
-    "bool.all" => ALL { attribute: Option<Attribute>, value: Vec<Classifier> } =>  { |py:Python| {  value.iter().all(|c| c.eval(py)) }
+    "bool.all" => ALL { value: Vec<Classifier> } =>  { |py:Python| {  value.iter().all(|c| c.eval(py)) }
     },
-    "bool.any" => ANY { attribute: Option<Attribute>, value: Vec<Classifier> } => { |py: Python| { value.iter().any(|c| c.eval(py)) }
+    "bool.any" => ANY { value: Vec<Classifier> } => { |py: Python| { value.iter().any(|c| c.eval(py)) }
     },
-    "comparison.lt" => LT { attribute: Attribute, value: Value } => {
+    "comparison.lt" => LT { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (Value::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
+        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
                 attr_val < *val
             } else {
@@ -132,10 +89,10 @@ define_classifier!(
         }
     }
     },
-    "comparison.gt" => GT { attribute: Attribute, value: Value } => {
+    "comparison.gt" => GT { attribute: Attribute, value: ClassifierValue } => {
 
         |py:Python| {
-        if let (Value::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
+        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
                 attr_val > *val
             } else {
@@ -145,9 +102,9 @@ define_classifier!(
             false
         }}
     },
-    "comparison.gte" => GTE { attribute: Attribute, value: Value } => {
+    "comparison.gte" => GTE { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (Value::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
+        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
                 attr_val >= *val
             } else {
@@ -157,9 +114,9 @@ define_classifier!(
             false
         }}
     },
-    "comparison.lte" => LTE { attribute: Attribute, value: Value } => {
+    "comparison.lte" => LTE { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (Value::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
+        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
             if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
                 attr_val <= *val
             } else {
@@ -169,17 +126,17 @@ define_classifier!(
             false
         }}
     },
-    "comparison.eq" => EQ { attribute: Attribute, value: Value } => {
+    "comparison.eq" => EQ { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
         let attr_py_obj_res = attribute.eval(py);
         if let Ok(attr_py_obj) = attr_py_obj_res {
-            if let Value::Number(val) = value {
+            if let ClassifierValue::Number(val) = value {
                 if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
                     attr_val == *val
                 } else {
                     false
                 }
-            } else if let Value::String(val) = value {
+            } else if let ClassifierValue::String(val) = value {
                 if let Ok(attr_val) = attr_py_obj.extract::<String>(py) {
                     attr_val == *val
                 } else {

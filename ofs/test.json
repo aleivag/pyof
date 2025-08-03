@@ -7,22 +7,19 @@
     {
       "name": "holdout",
       "classifier": {
-        "type": "bool.all",
-        "attribute": null,
+        "__type": "bool.all",
         "value": [
           {
-            "type": "comparison.lt",
+            "__type": "comparison.lt",
             "attribute": {
-              "type": "callable-attribute",
-              "name": "random.session"
+              "__type": "random.session"
             },
             "value": 0.1
           },
           {
-            "type": "re.match",
+            "__type": "re.match",
             "attribute": {
-              "type": "callable-attribute",
-              "name": "socket.hostname"
+              "__type": "socket.hostname"
             },
             "value": "^len.+"
           }
@@ -32,32 +29,45 @@
     {
       "name": "control",
       "classifier": {
-        "type": "bool.all",
-        "attribute": null,
+        "__type": "bool.all",
         "value": [
           {
-            "type": "comparison.lt",
+            "__type": "comparison.lt",
             "attribute": {
-              "type": "callable-attribute",
-              "name": "random.session"
+              "__type": "random.session"
             },
-            "value": 0.2
+            "value": 0.9
           },
           {
-            "type": "re.match",
+            "__type": "re.match",
             "attribute": {
-              "type": "callable-attribute",
-              "name": "socket.hostname"
+              "__type": "socket.hostname"
             },
             "value": "^len.+"
+          }
+        ]
+      }
+    },
+    {
+      "name": "",
+      "classifier": {
+        "__type": "bool.all",
+        "value": [
+          {
+            "__type": "comparison.eq",
+            "attribute": {
+              "__type": "static.number",
+              "value": 3.0
+            },
+            "value": 0.9
           }
         ]
       }
     }
   ],
   "values": {
-    "holdout": true,
-    "control": false
+    "control": 42.0,
+    "holdout": true
   },
   "default": false
 }

@@ -4,57 +4,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use pyo3::types::{PyBool, PyDict, PyFloat, PyList, PyString};
+
+#[macro_use]
+mod type_enum;
 mod attribute;
 mod classifier;
-use attribute::{Attribute, AttributeType};
-use classifier::{Classifier, Value};
+mod values;
+use attribute::Attribute;
+use classifier::{Classifier, ClassifierValue};
+use values::FeatureValue;
 
-// Represents the flexible `value` field in a Classifier.
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
-pub enum FeatureValue {
-    String(String),
-    Number(f64),
-    Boolean(bool),
-    Array(Vec<Value>),
-    Null,
-}
-
-impl<'source> FromPyObject<'source> for FeatureValue {
-    fn extract(ob: &PyAny) -> PyResult<Self> {
-        if let Ok(s) = ob.extract::<String>() {
-            Ok(FeatureValue::String(s))
-        } else if let Ok(f) = ob.extract::<f64>() {
-            Ok(FeatureValue::Number(f))
-        } else if let Ok(b) = ob.extract::<bool>() {
-            Ok(FeatureValue::Boolean(b))
-        } else if let Ok(l) = ob.extract::<Py<PyList>>() {
-            let mut vec = Vec::new();
-            for item in l.as_ref(ob.py()).iter() {
-                vec.push(item.extract()?);
-            }
-            Ok(FeatureValue::Array(vec))
-        } else if ob.is_none() {
-            Ok(FeatureValue::Null)
-        } else {
-            Err(PyValueError::new_err(
-                "Could not convert Python object to Value",
-            ))
-        }
-    }
-}
-
-impl IntoPy<PyObject> for FeatureValue {
-    fn into_py(self, py: Python) -> PyObject {
-        match self {
-            FeatureValue::String(s) => s.into_py(py),
-            FeatureValue::Number(f) => f.into_py(py),
-            FeatureValue::Boolean(b) => b.into_py(py),
-            FeatureValue::Array(v) => v.into_py(py),
-            FeatureValue::Null => py.None(),
-        }
-    }
-}
 macro_rules! PythonEnum {
     (
         $enum_name:ident, // The name of the enum (e.g., Classifier)
@@ -140,8 +99,12 @@ impl OfflineFeature {
         Ok(serde_json::from_str(json_string).map_err(|e| PyValueError::new_err(e.to_string()))?)
     }
 
-    pub fn dumps(&self, py: Python) -> String {
-        serde_json::to_string(&self).unwrap()
+    pub fn dumps(&self, py: Python, indent: Option<bool>) -> String {
+        if indent.unwrap_or(false) {
+            serde_json::to_string_pretty(&self).unwrap()
+        } else {
+            serde_json::to_string(&self).unwrap()
+        }
     }
 
     fn get_bucket_name(&self, py: Python) -> PyResult<String> {
@@ -154,16 +117,19 @@ impl OfflineFeature {
         Ok("default".to_string())
     }
 
-    pub fn get_value_for_bucket(&self, py: Python, bucket_name: &str) -> PyResult<PyObject> {
+    pub fn get_value_for_bucket(&self, bucket_name: &str) -> PyResult<FeatureValue> {
         if bucket_name == "default" {
-            return Ok((&self.default).clone().into_py(py));
+            return Ok((&self.default).clone());
         }
 
-        if let Some(value) = self.values.get(bucket_name) {
-            Ok(value.clone().into_py(py))
-        } else {
-            Ok(py.None())
-        }
+        let value = self.values.get(bucket_name).unwrap();
+        Ok(value.clone())
+    }
+
+    pub fn get_bucket_and_value(&self, py: Python) -> PyResult<(String, FeatureValue)> {
+        let name = &self.get_bucket_name(py)?;
+        let value = &self.get_value_for_bucket(name)?;
+        Ok((name.to_string(), value.clone()))
     }
 }
 
@@ -173,7 +139,6 @@ fn rust_of(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<FeatureType>()?;
     m.add_class::<PythonVersion>()?;
     m.add_class::<Attribute>()?;
-    m.add_class::<AttributeType>()?;
     m.add_class::<Classifier>()?;
     m.add_class::<OfflineFeature>()?;
     Ok(())

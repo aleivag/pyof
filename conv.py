@@ -5,49 +5,60 @@
 # ]
 # ///
 
-import json
 from pathlib import Path
 import rust_of
 
-#
-from pyof.c import ClassifierBase, _classifiers, REGEXMATCH, ALL, LESS_THAN, ANY
-from pyof.a import Hostname, SessionRandom, CallableAttribute
-from pyof.of import Offlinefeature, PythonVersion, FeatureType, Bucket
+from rust_of import (
+    OfflineFeature,
+    FeatureType,
+    PythonVersion,
+    Bucket,
+    Classifier as c,
+    Attribute as a,
+)
 
 
-of = Offlinefeature(
-    type=FeatureType.OFFLINE,
-    python_versions=[PythonVersion.ALL],
+of = OfflineFeature(
+    feature_type=FeatureType.Offline,
+    python_versions=[PythonVersion.All],
     buckets=[
         Bucket(
             name="holdout",
-            classifier=ALL(
+            classifier=c.ALL(
                 value=[
-                    SessionRandom() < 0.1,
-                    REGEXMATCH(attribute=Hostname(), value="^len.+"),
-                ]
+                    c.LT(a.SessionRandom(), 0.1),
+                    c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
+                ],
             ),
         ),
         Bucket(
             name="control",
-            classifier=ALL(
+            classifier=c.ALL(
                 value=[
-                    SessionRandom() < 0.2,
-                    REGEXMATCH(attribute=Hostname(), value="^len.+"),
-                ]
+                    c.LT(a.SessionRandom(), 0.9),
+                    c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
+                ],
+            ),
+        ),
+        Bucket(
+            name="",
+            classifier=c.ALL(
+                value=[
+                    c.EQ(a.StaticNumber(3), 0.9),
+                ],
             ),
         ),
     ],
-    values={"holdout": True, "control": False},
+    values={"holdout": True, "control": 42},
     default=False,
 )
+Path("ofs/test.json").write_text(of.dumps(indent=True))
+# of.write(Path("ofs/test.json"), indent=2, only_update=True)
 
-of.write(Path("ofs/test.json"), indent=2, only_update=True)
-
-json_of = of.model_dump_json(indent=2)
+json_of = of.dumps()
 
 
-nof = Offlinefeature.loads(json_of)
+# nof = Offlinefeature.loads(json_of)
 
 nof = rust_of.OfflineFeature.loads(json_of)
 
@@ -56,25 +67,4 @@ bucket = nof.get_bucket_name()
 print(f"{bucket=}")
 value = nof.get_value_for_bucket(bucket)
 print(f"{value=}")
-#
-# print(
-#     "same bucket?",
-#     nof.get_bucket_name() == (bucket := rust_of.get_bucket_name(json_of)),
-# )
-# print(
-#     "same random?",
-#     rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval()
-#     == rust_of.Attribute(name=rust_of.AttributeType.SessionRandom).eval(),
-# )
-# print("bucket?", bucket)
-#
-#
-# ### the other test
-#
-# print(isinstance(rust_of.Classifier.ALL, rust_of.Classifier))
-
-# RANDOM = rust_of.Attribute(name=rust_of.AttributeType.SessionRandom)
-# from pprint import pprint
-#
-# pprint(json.loads(nof.dumps()))
-# pprint(json.loads(json_of))
+print("pair", nof.get_bucket_and_value())  #

@@ -18,5 +18,4 @@ else
   cp "$SOURCE_LIB" "$DEST_LIB"
 fi
 
-uv run conv.py
-
+python3 conv.py
