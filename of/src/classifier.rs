@@ -1,12 +1,11 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
-use pyo3::types::{PyList };
+use pyo3::types::PyList;
 use serde::{Deserialize, Serialize};
 
 use crate::attribute::Attribute;
 
 use regex::Regex;
-use std::collections::HashMap;
 
 // Represents the flexible `value` field in a Classifier.
 #[derive(Serialize, Deserialize, Debug, Clone)]

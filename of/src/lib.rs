@@ -3,15 +3,13 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use pyo3::types::{PyBool, PyDict, PyFloat, PyList, PyString};
-
 #[macro_use]
 mod type_enum;
 mod attribute;
 mod classifier;
 mod values;
 use attribute::Attribute;
-use classifier::{Classifier, ClassifierValue};
+use classifier::Classifier;
 use values::FeatureValue;
 
 macro_rules! PythonEnum {
@@ -105,6 +103,29 @@ impl OfflineFeature {
         } else {
             serde_json::to_string(&self).unwrap()
         }
+    }
+    
+    #[pyo3(signature = (path, only_if_changed = true))]
+    pub fn write_to_disk(&self, py: Python, path: String, only_if_changed: bool) -> PyResult<()> {
+        use std::fs;
+        use std::io::Write;
+
+        let new_content = self.dumps(py, Some(true)); 
+
+        if only_if_changed {
+            if let Ok(existing_content) = fs::read_to_string(&path) {
+                if existing_content == new_content {
+                    return Ok(()); // No change, so do nothing
+                }
+            }
+        }
+
+        let mut file = fs::File::create(&path)
+            .map_err(|e| PyValueError::new_err(format!("Failed to create file {}: {}", path, e)))?;
+        file.write_all(new_content.as_bytes())
+            .map_err(|e| PyValueError::new_err(format!("Failed to write to file {}: {}", path, e)))?;
+
+        Ok(())
     }
 
     fn get_bucket_name(&self, py: Python) -> PyResult<String> {

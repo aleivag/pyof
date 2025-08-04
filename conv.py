@@ -51,8 +51,7 @@ of = OfflineFeature(
     values={"holdout": True, "control": 42},
     default=False,
 )
-Path("ofs/test.json").write_text(of.dumps(indent=True))
-# of.write(Path("ofs/test.json"), indent=2, only_update=True)
+of.write_to_disk("ofs/test.json", True)
 
 json_of = of.dumps()
 

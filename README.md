@@ -1,5 +1,3 @@
-THIS PROJECT IS JUST ME LEARNING HOW TO BUILD RUST APP WITH PYTHON ALSO USING AI AGENTS FOR THE FIRST TIME SO THIS IS NOT TO BE USED
-
 # PyOF - Python Offline Features
 
 PyOF is a Python library for managing offline feature flags and configurations. It allows developers to define complex feature rollout rules based on various classifiers, such as session data, host properties, or other custom attributes.
@@ -25,42 +23,52 @@ Create a Python script to define your feature. In this example, we create a feat
 
 ```python
 from pathlib import Path
-from pyof.c import REGEXMATCH
-from pyof.a import SESSION_RANDOM, HOSTNAME
-from pyof.of import Offlinefeature, FeatureType, PythonVersion, Bucket
+from of import (
+    OfflineFeature,
+    FeatureType,
+    PythonVersion,
+    Bucket,
+    Classifier as c,
+    Attribute as a,
+)
 
-# Define an offline feature
-my_feature = Offlinefeature(
-    type=FeatureType.OFFLINE,
-    python_versions=[PythonVersion.ALL],
+
+of = OfflineFeature(
+    feature_type=FeatureType.Offline,
+    python_versions=[PythonVersion.All],
     buckets=[
         Bucket(
             name="holdout",
-            # Classifier for the "holdout" group:
-            # 10% of sessions on hosts starting with "len"
-            classifier=(
-                (SESSION_RANDOM() < 0.1)
-                & (REGEXMATCH(attribute=HOSTNAME(), value="^len.+"))
+            classifier=c.ALL(
+                value=[
+                    c.LT(a.SessionRandom(), 0.1),
+                    c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
+                ],
             ),
         ),
         Bucket(
             name="control",
-            # Classifier for the "control" group (same as holdout)
-            classifier=(
-                (SESSION_RANDOM() < 0.1)
-                & (REGEXMATCH(attribute=HOSTNAME(), value="^len.+"))
+            classifier=c.ALL(
+                value=[
+                    c.LT(a.SessionRandom(), 0.9),
+                    c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
+                ],
+            ),
+        ),
+        Bucket(
+            name="",
+            classifier=c.ALL(
+                value=[
+                    c.EQ(a.StaticNumber(3), 0.9),
+                ],
             ),
         ),
     ],
-    # Define the values that each bucket will receive
-    values={"holdout": True, "control": False},
-    default=None,
+    values={"holdout": True, "control": 42},
+    default=False,
 )
+of.write_to_disk("ofs/test.json", True)
 
-# Serialize the feature definition to a JSON file
-my_feature.write(Path("features/my_feature.json"), indent=2)
-
-print("Feature 'my_feature.json' created successfully.")
 ```
 
 ### 2. Use the Feature in Your Application
@@ -70,38 +78,18 @@ In your application, you can load the JSON definition and evaluate it to get the
 `app.py`:
 
 ```python
-import json
-from pathlib import Path
-from pyof.c import ClassifierBase
-from pyof.a import CallableAttribute
-from pyof.of import Offlinefeature
+from of import OfflineFeature
 
-# Custom JSON object hook to reconstruct the feature object
-def obj_hook(dct):
-    if "type" not in dct:
-        return dct
+json_of = of.dumps()
 
-    type_ = dct["type"]
-    if type_ == "callable-attribute":
-        return CallableAttribute.get_attribute(dct["name"])()
-    if type_ == "offline-feature":
-        return Offlinefeature.model_validate(dct)
-    if classifier := ClassifierBase.get_classifier(type_):
-        return classifier.model_validate(dct)
-    return dct
+nof = OfflineFeature.loads(json_of)
 
-# Load the feature from the JSON file
-feature_path = Path("features/my_feature.json")
-with feature_path.open() as f:
-    json_string = f.read()
-    feature = json.loads(json_string, object_hook=obj_hook)
+bucket = nof.get_bucket_name()
 
-# Evaluate the feature to get the bucket name and value
-bucket_name = feature.get_bucket_name()
-value = feature.eval()
-
-print(f"The current session is in the '{bucket_name}' bucket.")
-print(f"The feature value is: {value}")
+print(f"{bucket=}")
+value = nof.get_value_for_bucket(bucket)
+print(f"{value=}")
+print("pair", nof.get_bucket_and_value())
 ```
 
 ## How It Works
