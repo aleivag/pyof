@@ -6,9 +6,8 @@
 # ///
 
 from pathlib import Path
-import rust_of
 
-from rust_of import (
+from of import (
     OfflineFeature,
     FeatureType,
     PythonVersion,
@@ -60,7 +59,7 @@ json_of = of.dumps()
 
 # nof = Offlinefeature.loads(json_of)
 
-nof = rust_of.OfflineFeature.loads(json_of)
+nof = OfflineFeature.loads(json_of)
 
 bucket = nof.get_bucket_name()
 

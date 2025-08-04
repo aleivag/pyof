@@ -66,8 +66,8 @@
     }
   ],
   "values": {
-    "control": 42.0,
-    "holdout": true
+    "holdout": true,
+    "control": 42.0
   },
   "default": false
 }

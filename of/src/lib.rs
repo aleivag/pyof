@@ -134,7 +134,7 @@ impl OfflineFeature {
 }
 
 #[pymodule]
-fn rust_of(_py: Python, m: &PyModule) -> PyResult<()> {
+fn of(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Bucket>()?;
     m.add_class::<FeatureType>()?;
     m.add_class::<PythonVersion>()?;
