@@ -46,13 +46,23 @@ PythonEnum! {
 struct Bucket {
     name: String,
     classifier: Classifier,
+    value: FeatureValue,
 }
 
 #[pymethods]
 impl Bucket {
     #[new]
-    fn new(name: String, classifier: Classifier) -> Self {
-        Bucket { name, classifier }
+    fn new(name: String, classifier: Classifier, value: FeatureValue) -> PyResult<Self> {
+        if name == "default" {
+            return Err(PyValueError::new_err(
+                "Cannot name a bucket 'default'. 'default' is a reserved name.",
+            ));
+        }
+        Ok(Bucket {
+            name,
+            classifier,
+            value,
+        })
     }
 }
 
@@ -63,7 +73,6 @@ struct OfflineFeature {
     feature_type: FeatureType,
     python_versions: Vec<PythonVersion>,
     buckets: Vec<Bucket>,
-    values: HashMap<String, FeatureValue>,
     default: FeatureValue,
 }
 
@@ -74,20 +83,12 @@ impl OfflineFeature {
         feature_type: FeatureType,
         python_versions: Vec<PythonVersion>,
         buckets: Vec<Bucket>,
-        values: HashMap<String, FeatureValue>,
         default: FeatureValue,
     ) -> PyResult<Self> {
-        if values.contains_key("default") {
-            return Err(PyValueError::new_err(
-                "'default' key is not allowed in the 'values' HashMap.",
-            ));
-        }
-
         Ok(OfflineFeature {
             feature_type,
             python_versions,
             buckets,
-            values,
             default,
         })
     }
@@ -127,30 +128,30 @@ impl OfflineFeature {
 
         Ok(())
     }
+    
 
-    fn get_bucket_name(&self, py: Python) -> PyResult<String> {
+    fn get_bucket(&self, py: Python) -> Option<Bucket> {
         for bucket in &self.buckets {
             if bucket.classifier.eval(py) {
-                return Ok(bucket.name.clone());
+                return Some(bucket.clone());
             }
         }
-
-        Ok("default".to_string())
+        None
     }
 
-    pub fn get_value_for_bucket(&self, bucket_name: &str) -> PyResult<FeatureValue> {
-        if bucket_name == "default" {
-            return Ok((&self.default).clone());
+
+    fn get_bucket_name(&self, py: Python) -> PyResult<String> {
+        match self.get_bucket(py) {
+            Some(bucket) => Ok(bucket.name),
+            None =>  Ok("default".to_string()),
+        } 
+    }
+
+    pub fn get_bucket_name_and_value(&self, py: Python) -> PyResult<(String, FeatureValue)> {
+        match  self.get_bucket(py) {
+            Some(bucket) =>         Ok((bucket.name.to_string(), bucket.value.clone())),
+            None => Ok(("default".to_string(), (&self.default).clone()))
         }
-
-        let value = self.values.get(bucket_name).unwrap();
-        Ok(value.clone())
-    }
-
-    pub fn get_bucket_and_value(&self, py: Python) -> PyResult<(String, FeatureValue)> {
-        let name = &self.get_bucket_name(py)?;
-        let value = &self.get_value_for_bucket(name)?;
-        Ok((name.to_string(), value.clone()))
     }
 }
 

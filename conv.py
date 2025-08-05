@@ -1,12 +1,3 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = [
-#   "pydantic",
-# ]
-# ///
-
-from pathlib import Path
-
 from of import (
     OfflineFeature,
     FeatureType,
@@ -25,19 +16,21 @@ of = OfflineFeature(
             name="holdout",
             classifier=c.ALL(
                 value=[
-                    c.LT(a.SessionRandom(), 0.1),
+                    a.SessionRandom() < 0.1,
                     c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
                 ],
             ),
+            value=True,
         ),
         Bucket(
             name="control",
             classifier=c.ALL(
                 value=[
-                    c.LT(a.SessionRandom(), 0.9),
+                    a.SessionRandom() < 0.2,
                     c.REGEXMATCH(attribute=a.Hostname(), value="^len.+"),
                 ],
             ),
+            value=False,
         ),
         Bucket(
             name="",
@@ -46,23 +39,20 @@ of = OfflineFeature(
                     c.EQ(a.StaticNumber(3), 0.9),
                 ],
             ),
+            value=None,
         ),
     ],
-    values={"holdout": True, "control": 42},
     default=False,
 )
-of.write_to_disk("ofs/test.json", True)
-
+of.write_to_disk("ofs/test.json")
 json_of = of.dumps()
 
 
-# nof = Offlinefeature.loads(json_of)
-
 nof = OfflineFeature.loads(json_of)
+
 
 bucket = nof.get_bucket_name()
 
 print(f"{bucket=}")
-value = nof.get_value_for_bucket(bucket)
-print(f"{value=}")
-print("pair", nof.get_bucket_and_value())  #
+print("pair", nof.get_bucket_name_and_value())  #
+print("pair", nof.get_bucket())  #

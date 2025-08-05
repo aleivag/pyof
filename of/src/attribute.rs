@@ -3,11 +3,64 @@ use pyo3::prelude::*;
 use pyo3::types::{PyFloat, PyString};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use crate::classifier::{ClassifierValue, Classifier};
+
+use pyo3::class::basic::CompareOp;
 
 
+macro_rules! AttributeEnum {
+    ($enum_name:ident => $result_type:ty,
+    $(
+        $serde_name:literal => $variant_name:ident { $($field_name:ident : $field_type:ty),* } => { $($eval_logic:tt)* }
+    ),*
+
+    ) => {
+
+        #[pyclass]
+        #[derive(Serialize, Deserialize, Debug, Clone)]
+        #[serde(tag = "__type")]
+        pub enum $enum_name {
+            $(
+                #[serde(rename = $serde_name)]
+                $variant_name { $($field_name : $field_type),* },
+            )*
+        }
+
+        #[pymethods]
+        impl $enum_name { 
+            pub fn eval(&self, py: Python) -> $result_type  {
+                match self {
+                    $(
+                        $enum_name::$variant_name { $($field_name),* } => {
+                            let logic = $($eval_logic)* ;
+                            logic(py)
+                        }
+                    ),*
+                }
+            }
+            pub fn json(&self) -> String {
+                serde_json::to_string(&self).unwrap()
+            }
+            pub fn __richcmp__(&self, other: ClassifierValue, op: CompareOp) -> Classifier{
+                match op {
+                    CompareOp::Lt => Classifier::LT {attribute: self.clone(), value: other},
+                    CompareOp::Le => Classifier::LTE {attribute: self.clone(), value: other},
+                    CompareOp::Eq =>Classifier::EQ {attribute: self.clone(), value: other},
+                    CompareOp::Ne =>Classifier::EQ  {attribute: self.clone(), value: other},
+                    CompareOp::Gt =>Classifier::GT {attribute: self.clone(), value: other},
+                    CompareOp::Ge =>Classifier::GTE {attribute: self.clone(), value: other},
+ 
+                }
+            }
+        }
+
+
+
+    };
+}
 static SESSION_RANDOM_CACHE: OnceCell<PyObject> = OnceCell::new();
 
-TypeEnum! {
+AttributeEnum! {
     // Attribute => PyObject,
     Attribute => PyResult<PyObject>,
     "static.number" => StaticNumber {value: f64} =>  {

@@ -7,6 +7,66 @@ use crate::attribute::Attribute;
 
 use regex::Regex;
 
+macro_rules! PyTagEnum{
+    (
+        $enum_name:ident,
+        $($serde_name:literal => $variant_name:ident { $($field_name:ident : $field_type:ty),* }),*
+    ) => {
+
+        #[pyclass]
+        #[derive(Serialize, Deserialize, Debug, Clone)]
+        #[serde(tag = "__type")]
+        pub enum $enum_name {
+            $(
+                #[serde(rename = $serde_name)]
+                $variant_name { $($field_name : $field_type),* },
+            )*
+        }
+
+
+    }
+}
+
+
+macro_rules! ClassifierEnum {
+    ($enum_name:ident => $result_type:ty,
+    $(
+        $serde_name:literal => $variant_name:ident { $($field_name:ident : $field_type:ty),* } => { $($eval_logic:tt)* }
+    ),*
+
+    ) => {
+
+        PyTagEnum! {
+            $enum_name,
+            $(
+                $serde_name => $variant_name { $($field_name : $field_type),* }
+            ),*
+
+        }
+
+        #[pymethods]
+        impl $enum_name { 
+
+            pub fn eval(&self, py: Python) -> $result_type  {
+                match self {
+                    $(
+                        $enum_name::$variant_name { $($field_name),* } => {
+                            let logic = $($eval_logic)* ;
+                            logic(py)
+                        }
+                    ),*
+                }
+            }
+            pub fn json(&self) -> String {
+                serde_json::to_string(&self).unwrap()
+            }
+
+        }
+
+    };
+}
+
+
 // Represents the flexible `value` field in a Classifier.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -55,7 +115,7 @@ impl IntoPy<PyObject> for ClassifierValue {
     }
 }
 
-TypeEnum!(
+ClassifierEnum!(
     Classifier=>bool,
     "re.match" => REGEXMATCH { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
@@ -74,6 +134,17 @@ TypeEnum!(
     "bool.all" => ALL { value: Vec<Classifier> } =>  { |py:Python| {  value.iter().all(|c| c.eval(py)) }
     },
     "bool.any" => ANY { value: Vec<Classifier> } => { |py: Python| { value.iter().any(|c| c.eval(py)) }
+    },
+    "bool.none" => NOT {value: ClassifierValue} => {
+        |py:Python| {
+            match value {
+                ClassifierValue::Classifier(c) => !(*c).eval(py),
+                ClassifierValue::String(s) => false,
+                ClassifierValue::Number(f) => *f != 0.0,
+                ClassifierValue::Boolean(b) => *b,
+                ClassifierValue::Array(v) => false,
+            }
+        }
     },
     "comparison.lt" => LT { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
@@ -148,4 +219,5 @@ TypeEnum!(
             false
         }}
     }
+
 );

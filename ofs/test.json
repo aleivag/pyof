@@ -24,7 +24,8 @@
             "value": "^len.+"
           }
         ]
-      }
+      },
+      "value": true
     },
     {
       "name": "control",
@@ -36,7 +37,7 @@
             "attribute": {
               "__type": "random.session"
             },
-            "value": 0.9
+            "value": 0.2
           },
           {
             "__type": "re.match",
@@ -46,7 +47,8 @@
             "value": "^len.+"
           }
         ]
-      }
+      },
+      "value": false
     },
     {
       "name": "",
@@ -62,12 +64,9 @@
             "value": 0.9
           }
         ]
-      }
+      },
+      "value": null
     }
   ],
-  "values": {
-    "holdout": true,
-    "control": 42.0
-  },
   "default": false
 }
