@@ -116,108 +116,128 @@ impl IntoPy<PyObject> for ClassifierValue {
 }
 
 ClassifierEnum!(
-    Classifier=>bool,
+    Classifier=>PyResult<bool>,
     "re.match" => REGEXMATCH { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-            if let (ClassifierValue::String(pattern), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
-            if let Ok(hostname) = attr_py_obj.extract::<String>(py) {
-                let re = Regex::new(pattern).unwrap();
-                re.is_match(&hostname)
+            let attr_py_obj = attribute.eval(py)?;
+            if let ClassifierValue::String(pattern) = value {
+                if let Ok(hostname) = attr_py_obj.extract::<String>(py) {
+                    let re = Regex::new(pattern).map_err(|e| PyValueError::new_err(e.to_string()))?;
+                    Ok(re.is_match(&hostname))
+                } else {
+                    Ok(false)
+                }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
-        }
         }
     },
-    "bool.all" => ALL { value: Vec<Classifier> } =>  { |py:Python| {  value.iter().all(|c| c.eval(py)) }
+    "bool.all" => ALL { value: Vec<Classifier> } =>  {
+        |py:Python| {
+            for c in value {
+                if !c.eval(py)? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
     },
-    "bool.any" => ANY { value: Vec<Classifier> } => { |py: Python| { value.iter().any(|c| c.eval(py)) }
+    "bool.any" => ANY { value: Vec<Classifier> } => {
+        |py: Python| {
+            for c in value {
+                if c.eval(py)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
     },
     "bool.none" => NOT {value: ClassifierValue} => {
         |py:Python| {
             match value {
-                ClassifierValue::Classifier(c) => !(*c).eval(py),
-                ClassifierValue::String(s) => false,
-                ClassifierValue::Number(f) => *f != 0.0,
-                ClassifierValue::Boolean(b) => *b,
-                ClassifierValue::Array(v) => false,
+                ClassifierValue::Classifier(c) => Ok(!c.eval(py)?),
+                ClassifierValue::String(s) => Ok(s.is_empty()),
+                ClassifierValue::Number(f) => Ok(*f == 0.0),
+                ClassifierValue::Boolean(b) => Ok(!*b),
+                ClassifierValue::Array(v) => Ok(v.is_empty()),
             }
         }
     },
     "comparison.lt" => LT { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
-            if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
-                attr_val < *val
+            let attr_py_obj = attribute.eval(py)?;
+            if let ClassifierValue::Number(val) = value {
+                if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
+                    Ok(attr_val < *val)
+                } else {
+                    Ok(false)
+                }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
         }
-    }
     },
     "comparison.gt" => GT { attribute: Attribute, value: ClassifierValue } => {
-
         |py:Python| {
-        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
-            if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
-                attr_val > *val
+            let attr_py_obj = attribute.eval(py)?;
+            if let ClassifierValue::Number(val) = value {
+                if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
+                    Ok(attr_val > *val)
+                } else {
+                    Ok(false)
+                }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
-        }}
+        }
     },
     "comparison.gte" => GTE { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
-            if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
-                attr_val >= *val
+            let attr_py_obj = attribute.eval(py)?;
+            if let ClassifierValue::Number(val) = value {
+                if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
+                    Ok(attr_val >= *val)
+                } else {
+                    Ok(false)
+                }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
-        }}
+        }
     },
     "comparison.lte" => LTE { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        if let (ClassifierValue::Number(val), Ok(attr_py_obj)) = (value, attribute.eval(py)) {
-            if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
-                attr_val <= *val
+            let attr_py_obj = attribute.eval(py)?;
+            if let ClassifierValue::Number(val) = value {
+                if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
+                    Ok(attr_val <= *val)
+                } else {
+                    Ok(false)
+                }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
-        }}
+        }
     },
     "comparison.eq" => EQ { attribute: Attribute, value: ClassifierValue } => {
         |py:Python| {
-        let attr_py_obj_res = attribute.eval(py);
-        if let Ok(attr_py_obj) = attr_py_obj_res {
+            let attr_py_obj = attribute.eval(py)?;
             if let ClassifierValue::Number(val) = value {
                 if let Ok(attr_val) = attr_py_obj.extract::<f64>(py) {
-                    attr_val == *val
+                    Ok(attr_val == *val)
                 } else {
-                    false
+                    Ok(false)
                 }
             } else if let ClassifierValue::String(val) = value {
                 if let Ok(attr_val) = attr_py_obj.extract::<String>(py) {
-                    attr_val == *val
+                    Ok(attr_val == *val)
                 } else {
-                    false
+                    Ok(false)
                 }
             } else {
-                false
+                Ok(false)
             }
-        } else {
-            false
-        }}
+        }
     }
 
 );

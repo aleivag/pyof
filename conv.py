@@ -56,3 +56,6 @@ bucket = nof.get_bucket_name()
 print(f"{bucket=}")
 print("pair", nof.get_bucket_name_and_value())  #
 print("pair", nof.get_bucket())  #
+
+
+

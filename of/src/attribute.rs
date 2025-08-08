@@ -81,6 +81,11 @@ AttributeEnum! {
             });
             Ok(random_value.clone_ref(py))
         }
+    },
+    "error" => ErrorAttribute {} => {
+        |py:Python| {
+            Err(pyo3::exceptions::PyValueError::new_err("This attribute always errors out"))
+        }
     }
 
 }

@@ -130,25 +130,27 @@ impl OfflineFeature {
     }
     
 
-    fn get_bucket(&self, py: Python) -> Option<Bucket> {
+    fn get_bucket(&self, py: Python) -> PyResult<Option<Bucket>> {
         for bucket in &self.buckets {
-            if bucket.classifier.eval(py) {
-                return Some(bucket.clone());
+            match bucket.classifier.eval(py) {
+                Ok(true) => return Ok(Some(bucket.clone())),
+                Ok(false) => continue,
+                Err(_) => continue, // Treat errors as a non-match
             }
         }
-        None
+        Ok(None)
     }
 
 
     fn get_bucket_name(&self, py: Python) -> PyResult<String> {
-        match self.get_bucket(py) {
+        match self.get_bucket(py)? {
             Some(bucket) => Ok(bucket.name),
             None =>  Ok("default".to_string()),
         } 
     }
 
     pub fn get_bucket_name_and_value(&self, py: Python) -> PyResult<(String, FeatureValue)> {
-        match  self.get_bucket(py) {
+        match  self.get_bucket(py)? {
             Some(bucket) =>         Ok((bucket.name.to_string(), bucket.value.clone())),
             None => Ok(("default".to_string(), (&self.default).clone()))
         }
