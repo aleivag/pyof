@@ -16,4 +16,4 @@ if ! [ -f "$DEST_LIB" ] || ! cmp -s "$SOURCE_LIB" "$DEST_LIB"; then
 fi
 
 python3 conv.py
-python3 -m unittest test_error_attribute.py
+python3 -m unittest test_*.py

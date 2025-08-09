@@ -1,3 +1,4 @@
+use crate::result::{EvalResult, EvalResultType};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,10 @@ pub struct OfflineFeature {
     buckets: Vec<Bucket>,
     default: FeatureValue,
 }
+
+
+
+
 
 #[pymethods]
 impl OfflineFeature {
@@ -114,10 +119,18 @@ impl OfflineFeature {
         } 
     }
 
-    pub fn get_bucket_name_and_value(&self, py: Python) -> PyResult<(String, FeatureValue)> {
-        match  self.get_bucket(py)? {
-            Some(bucket) =>         Ok((bucket.name.to_string(), bucket.value.clone())),
-            None => Ok(("default".to_string(), (&self.default).clone()))
+    pub fn get_bucket_name_and_value(&self, py: Python) -> PyResult<EvalResult> {
+        match self.get_bucket(py)? {
+            Some(bucket) => Ok(EvalResult::new(
+                EvalResultType::Ok,
+                Some(bucket.name.clone()),
+                bucket.value.clone(),
+            )),
+            None => Ok(EvalResult::new(
+                EvalResultType::Default,
+                Some("default".to_string()),
+                self.default.clone(),
+            )),
         }
     }
 }
